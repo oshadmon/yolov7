@@ -6,6 +6,9 @@ import time
 import threading
 
 ROOT_PATH = os.path.dirname(__file__)
+BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
+if not os.path.isdir(BLOBS_DIR):
+    os.makedirs(BLOBS_DIR)
 
 def get_default_camera_id():
     camera_id = None
@@ -51,7 +54,7 @@ class VideoRecorder:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
     def __create_video_writer(self):
-        self.filename = os.path.join(ROOT_PATH, f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.mp4')
+        self.filename = os.path.join(BLOBS_DIR, f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.mp4')
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video_writer = cv2.VideoWriter(self.filename, fourcc, 20.0, (int(self.width), int(self.height)))
         return video_writer
