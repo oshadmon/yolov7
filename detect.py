@@ -1,4 +1,5 @@
 import argparse
+import os.path
 import time
 from pathlib import Path
 
@@ -184,6 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
     opt = parser.parse_args()
+    opt.source = os.path.expanduser(os.path.expandvars(opt.source))
     print(opt)
     #check_requirements(exclude=('pycocotools', 'thop'))
 
