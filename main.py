@@ -29,6 +29,7 @@ from detect import detect
 # print(opt.no_trace)
 
 if __name__ == '__main__':
-    source = os.path.expanduser(os.path.expandvars('~/yolov7/blobs/2024_05_28_08_36_37.mp4'))
-    # source = os.path.expandvars(os.path.expanduser('~/Sample-Data-Generator/blobs/car_video/video67A.mp4'))
+    # source = os.path.expanduser(os.path.expandvars('~/yolov7/blobs/2024_05_28_08_36_37.mp4'))
+    source = os.path.expandvars(os.path.expanduser('~/Sample-Data-Generator/blobs/car_video/video67A.mp4'))
     readings = detect(weights="yolov7.pt", conf_thres=0.25, imgsz=640, source=source)
+    print(readings)

@@ -15,10 +15,12 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
+ROOT_PATH = os.path.dirname(__file__)
+PROJECT_PATH = os.path.join(ROOT_PATH, 'runs', 'detect')
 
 def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thres=0.25, iou_thres=0.45, device = '',
-           view_img=False, get_bbox:bool=True, save_txt=False, save_conf=False, nosave=False, classes=None, agnostic_nms=False,
-           augment=False, update=False, project='runs/detect', name='exp', exist_ok=False, trace=False):
+           view_img=False, get_bbox:bool=True, save_txt=False, save_conf=False, nosave=False, classes=None,
+           agnostic_nms=False, augment=False, project=PROJECT_PATH, name='exp', exist_ok=False, trace=False):
     """
     run YOLO-v7 object detection on a given source.
     :args:
@@ -66,8 +68,13 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
 
     # Directories
-    save_dir = Path(increment_path(Path(project) / name, exist_ok=exist_ok))  # increment run
+    save_dir_path = os.path.join(Path(project), name)
+    save_dir = Path(increment_path(save_dir_path, exist_ok=exist_ok))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+
+    # Create frames directory if it doesn't exist
+    frames_dir = os.path.join(project, name, 'frames')
+    os.makedirs(frames_dir, exist_ok=True)
 
     # Initialize
     set_logging()
@@ -178,7 +185,7 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
 
             # Print time (inference + NMS)
             # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
-            readings.append(reading)
+
             # Stream results
             if view_img:
                 cv2.imshow(str(p), im0)
@@ -188,7 +195,6 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
             if save_img:
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
-                    # print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
                     if vid_path != save_path:  # new video
                         vid_path = save_path
@@ -204,11 +210,18 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
 
+                # Save individual frames without detections
+                img_path = os.path.join(project, name, 'frames', f"{p.stem}_{frame}.jpg")
+                reading["img_path"] = img_path
+                cv2.imwrite(img_path, im0)
+            readings.append(reading)
+
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
     # print(f'Done. ({time.time() - t0:.3f}s)')
+    sys.stdout = original_stdout
     return readings
 
 # if __name__ == '__main__':
