@@ -1,6 +1,8 @@
 import os
 from detect import detect
 
+
+
 # class DetectParams:
 #     weights = ['yolov7.pt']
 #     source = 'inference/images'
@@ -28,4 +30,5 @@ from detect import detect
 
 if __name__ == '__main__':
     source = os.path.expanduser(os.path.expandvars('~/yolov7/blobs/2024_05_28_08_36_37.mp4'))
-    detect(weights="yolov7.pt", conf_thres=0.25, imgsz=640, source=source)
+    # source = os.path.expandvars(os.path.expanduser('~/Sample-Data-Generator/blobs/car_video/video67A.mp4'))
+    readings = detect(weights="yolov7.pt", conf_thres=0.25, imgsz=640, source=source)

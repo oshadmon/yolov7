@@ -1,5 +1,5 @@
-import argparse
-import os.path
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -17,8 +17,49 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized,
 
 
 def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thres=0.25, iou_thres=0.45, device = '',
-           view_img=False, save_txt=False, save_conf=False, nosave=False, classes=None, agnostic_nms=False,
+           view_img=False, get_bbox:bool=True, save_txt=False, save_conf=False, nosave=False, classes=None, agnostic_nms=False,
            augment=False, update=False, project='runs/detect', name='exp', exist_ok=False, trace=False):
+    """
+    run YOLO-v7 object detection on a given source.
+    :args:
+        weights:list - Paths to the weights file(s)
+        source:str - Source of the input data (image, video, or webcam)
+        imgsz:int - Image size for inference
+        conf_thres:float - Confidence threshold for detections
+        iou_thres:float - IoU threshold for Non-Maximum Suppression
+        device:str - Device to run inference on (e.g., 'cpu', 'cuda:0')
+        view_img:bool - Whether to display the output images
+        save_txt (bool) - Whether to save detection results in text files
+        save_conf:bool - Whether to save confidences in labels
+        nosave:bool - Whether to skip saving the inference images
+        classes:list - Filter by class (index of classes)
+        agnostic_nms:bol  - Whether to perform class-agnostic NMS
+        augment:bool - Augment images during inference
+        update:bool - Update all models (to fix SourceChangeWarning)
+        project:str - Save results to project/name
+        name:str - Save results to project/name
+        exist_ok:bool - Whether to increment the run if it exists
+        trace:bool - Whether to trace the model for faster inference
+    :params:
+        readings:list - list of JSON information for image
+    :return:
+        readings
+    :sample-reading:
+    {
+        'bbox': [
+            [0.91796875, 0.7489583492279053, 0.0390625, 0.08958332985639572],
+            [0.671875, 0.5604166388511658, 0.590624988079071, 0.8708333373069763]
+        ],
+        'chair': 1,
+        'person': 1
+    }
+    """
+    original_stdout = sys.stdout
+    sys.stdout = open(os.devnull, 'w')
+
+
+    readings = []
+    img_size = imgsz
     # source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
@@ -115,25 +156,29 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
+                reading = {}
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
+                    reading[names[int(c)].strip().replace(" ", "_")] = n.numpy().tolist()
+                # Write results (bbox values)
+                if get_bbox is True:
+                    reading["bbox"] = []
+                    for *xyxy, conf, cls in reversed(det):
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                        reading['bbox'].append(list(line[1:]))
+                        if save_txt:  # Write to file
+                            with open(txt_path + '.txt', 'a') as f:
+                                f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
             # Print time (inference + NMS)
-            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
-
+            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            readings.append(reading)
             # Stream results
             if view_img:
                 cv2.imshow(str(p), im0)
@@ -143,7 +188,7 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
             if save_img:
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
-                    print(f" The image with the result is saved in: {save_path}")
+                    # print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
                     if vid_path != save_path:  # new video
                         vid_path = save_path
@@ -163,8 +208,8 @@ def detect(weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thr
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
-    print(f'Done. ({time.time() - t0:.3f}s)')
-
+    # print(f'Done. ({time.time() - t0:.3f}s)')
+    return readings
 
 # if __name__ == '__main__':
 #     parser = argparse.ArgumentParser()
