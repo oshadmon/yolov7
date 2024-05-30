@@ -115,7 +115,7 @@ class VideoRecorder:
                     "duration": round(current_time - self.start_time, 2)
                 }
                 if remote_conn is None:
-                    support.write_file(data_dir=self.data_dir)
+                    support.write_file(data_dir=self.data_dir, metadata=metadata)
                 else:
                     support.send_data(db_name=self.dbms, conn=remote_conn, table=table_name, metadata=metadata)
                 self.start_time = current_time
