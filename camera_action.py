@@ -6,8 +6,6 @@ import time
 import threading
 import json
 
-import __support__ as support
-
 ROOT_PATH = os.path.dirname(__file__)
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
 os.makedirs(BLOBS_DIR, exist_ok=True)
@@ -20,7 +18,7 @@ def write_file(metadata):
 
 
 class VideoRecorder:
-    def __init__(self, dbms:str, data_dir:str=BLOBS_DIR, camera_id:int=0, width:float=640, height:float=480, wait_time:float=60):
+    def __init__(self, camera_id:int=0, width:float=640, height:float=480, wait_time:float=60):
         """
         Record video for user
         :args:
@@ -38,8 +36,6 @@ class VideoRecorder:
             self.height:float - Image height size
             self.wait_time:float - how long each video will be
         """
-        self.dbms = dbms
-        self.data_dir = data_dir
         self.camera_id = camera_id
         self.width = width
         self.height = height
@@ -85,15 +81,15 @@ class VideoRecorder:
         video_writer = cv2.VideoWriter(self.filename, fourcc, 20.0, (int(self.width), int(self.height)))
         return video_writer
 
-    def start_recording(self, table_name:str=None, remote_conn:str=None):
+    def start_recording(self):
         """
         Start recording
         """
         self.__set_cap_size()
         self.is_running = True
-        threading.Thread(target=self.__record, args=(table_name, remote_conn)).start()
+        threading.Thread(target=self.__record).start()
 
-    def __record(self, table_name:str=None, remote_conn:str=None):
+    def __record(self):
         """
         Actual recording process  - once recording is done, write video info into a JSON file
         """
@@ -108,16 +104,12 @@ class VideoRecorder:
             if current_time - self.start_time >= self.wait_time:
                 self.video_writer.release()
                 self.video_writer = self.__create_video_writer()
-                metadata = {
+                write_file({
                     "file_path": self.filename,
                     "start_time": datetime.datetime.fromtimestamp(self.start_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
                     "end_time": datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
                     "duration": round(current_time - self.start_time, 2)
-                }
-                if remote_conn is None:
-                    support.write_file(data_dir=self.data_dir, metadata=metadata)
-                else:
-                    support.send_data(db_name=self.dbms, conn=remote_conn, table=table_name, metadata=metadata)
+                })
                 self.start_time = current_time
 
             self.video_writer.write(frame)
@@ -130,6 +122,18 @@ class VideoRecorder:
         self.cap.release()
         self.video_writer.release()
 
+    # def display_feed(self, height=None, width=None):
+    #     self.__set_cap_size(height=height, width=width)
+    #     while True:
+    #         ret, frame = self.cap.read()
+    #         if not ret:
+    #             print("Error: Could not read frame.")
+    #             continue
+    #
+    #         cv2.imshow('Video Feed', frame)
+    #         if cv2.waitKey(1) & 0xFF == ord('q'):
+    #             break
+    #     cv2.destroyAllWindows()
 
 
 def video_reader(file_path:str):
@@ -187,15 +191,10 @@ def main():
     parser.add_argument('--width', type=float, default=640, help='Live feed screen ratio width')
     parser.add_argument('--height', type=float, default=480, help='Live feed screen ratio height')
     parser.add_argument('--cut-video', type=int, default=10, help='Video size (in seconds)')
-    parser.add_argument('--db-name', type=str, default='live_data', help='logical database to store data in')
-    parser.add_argument('--table', type=str, default='live_video', help='physical table name')
-    parser.add_argument('--remote-conn', type=str, default=None, help='REST (POST) connection information (ex. [user]:[password]@[ip]:[port]')
-    parser.add_argument('--data-dir', type=str, default=BLOBS_DIR, help='data directory for blobs')
     args = parser.parse_args()
 
-    video_recorder = VideoRecorder(dbms=args.db_name, data_dir=args.data_dir, camera_id=args.camera_id, width=args.width,
-                                   height=args.height, wait_time=args.cut_video)
-    video_recorder.start_recording(table_name=args.table, remote_conn=args.remote_conn)
+    video_recorder = VideoRecorder(camera_id=args.camera_id, width=args.width, height=args.height, wait_time=args.cut_video)
+    video_recorder.start_recording()
 
     try:
         while True:
