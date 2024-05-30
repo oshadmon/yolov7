@@ -6,7 +6,7 @@ import time
 import threading
 import json
 
-ROOT_PATH = os.path.dirname(__file__)
+ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
 
 def get_default_camera_id():
@@ -100,7 +100,7 @@ def main():
     parse = argparse.ArgumentParser()
     parse.add_argument('--camera-id', type=int, default=get_default_camera_id(), help='Camera ID')
     parse.add_argument('--width', type=float, default=640, help='Live feed screen ratio width')
-    parse.add_argument('--height', type=float, default 480, help='Live feed screen ratio height')
+    parse.add_argument('--height', type=float, default=480, help='Live feed screen ratio height')
     parse.add_argument('--cut-video', type=int, default=10, help='Video size (in seconds)')
     parse.add_argument('--blobs-dir', type=str, default=BLOBS_DIR, help='Directory to store videos cuts and insight')
     args = parse.parse_args()
@@ -134,6 +134,7 @@ def main():
         print(f"\nError: {error}")
     finally:
         video_recorder.stop_recording()
+
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,6 @@
 import base64
 import json
 import os
-import time
-
-from camera_action import video_reader
 
 ROOT_PATH = os.path.dirname(__file__)
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
