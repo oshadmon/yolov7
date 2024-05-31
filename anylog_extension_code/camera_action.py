@@ -12,6 +12,9 @@ ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
 
 def get_default_camera_id():
+    """
+    Get default camera ID
+    """
     for i in range(10):
         cap = cv2.VideoCapture(i)
         if cap.isOpened():
@@ -20,6 +23,13 @@ def get_default_camera_id():
     raise Exception("Error: Could not find an available camera.")
 
 def frames_to_video(frames, output_file, fps):
+    """
+    Write video frames into mp4 file
+    :args:
+        frames:list - frames to write
+        output_file:str - file to store frames into
+        fps:float - frame rates
+    """
     frames = [np.array(frame, dtype=np.uint8) for frame in frames]
     height, width, layers = frames[0].shape
     size = (width, height)
@@ -29,21 +39,45 @@ def frames_to_video(frames, output_file, fps):
         out.write(frame)
     out.release()
 
-def write_metadata(blobs_dir=BLOBS_DIR, metadata={}):
+
+def write_metadata(blobs_dir=BLOBS_DIR, metadata:dict={}):
+    """
+    write conteent into file
+    :args:
+        blobs_dir:str - directory file
+        metadata:dict - content to store
+    :params:
+        metadata_file:str - file path (blobs_dir + metadata.json)
+    """
     metadata_file = os.path.join(blobs_dir, 'metadata.json')
     if not os.path.isfile(metadata_file):
         open(metadata_file, 'w').close()
 
+    # write frames to mp4 file
     frames_to_video(frames=metadata['frames'], output_file=os.path.join(blobs_dir, metadata['file_name']),
                     fps=metadata['fps'])
     del metadata['frames']
+
+    # write metadata to file
     try:
         with open(metadata_file, 'a') as f:
             f.write(f"{json.dumps(metadata)}\n")
     except Exception as error:
         print(f"Failed to write metadata into file {metadata_file} (Error: {error})")
 
-def send_data(rest_conn, topic='livefeed', metadata={}):
+
+def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
+    """
+    Send data to file
+    :args:
+        rest_conn:str - REST connection information
+        topic:str - REST topic
+        metadata:dict - content to store
+    :params:
+        conn:str - REST conn IP:PORT
+        auth:tuple - REST authentication
+        headers:dict - REST header information
+    """
     auth = ()
     conn = rest_conn
     if '@' in rest_conn:
@@ -55,11 +89,15 @@ def send_data(rest_conn, topic='livefeed', metadata={}):
         'User-Agent': 'AnyLog/1.23',
         'Content-Type': 'application/json'
     }
+
+    for i in range(len(metadata['frames'])):
+        metadata['frames'][i] = metadata['frames'][i].tolist()
     try:
         response = requests.post(url=f"http://{conn}", headers=headers, json=metadata, auth=auth, timeout=30)
         response.raise_for_status()
     except Exception as error:
         print(f"Failed to send metadata to {conn} (Error: {error})")
+
 
 class VideoRecorder:
     def __init__(self, blobs_dir, db_name, table_name=None, rest_conn=None, rest_topic='livefeed',
@@ -69,7 +107,10 @@ class VideoRecorder:
         self.table_name = table_name
         self.rest_conn = rest_conn
         self.rest_topic = rest_topic
-        self.camera_id = camera_id
+        try:
+            self.camera_id = int(camera_id)
+        except Exception as error:
+            raise Exception(f"Invalid camera id type (Error: {error})")
         self.width = width
         self.height = height
         self.wait_time = wait_time
@@ -170,7 +211,13 @@ def main():
     args.blobs_dir = os.path.expanduser(os.path.expandvars(args.blobs_dir))
     os.makedirs(args.blobs_dir, exist_ok=True)
 
-    video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='test', camera_id=args.camera_id, width=args.width, height=args.height, wait_time=args.cut_video)
+    video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company',  table_name='livefeed',
+                                   camera_id=args.camera_id, width=args.width, height=args.height,
+                                   wait_time=args.cut_video)
+    # video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company', table_name='livefeed',
+    #                                rest_conn='198.74.50.131:32149', rest_topic='livefeed', camera_id=args.camera_id,
+    #                                width=args.width, height=args.height, wait_time=args.cut_video)
+
     video_recorder.start_recording()
 
     try:
