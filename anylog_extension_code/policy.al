@@ -64,11 +64,12 @@ set policy new_policy [mapping][schema][fps][root] = true.bool
 
 set policy new_policy [mapping][schema][file] = {}
 set policy new_policy [mapping][schema][file][blob] = true.bool
-set policy new_policy [mapping][schema][file][bring] = "[frames]"
+set policy new_policy [mapping][schema][file][bring] = "[video_base64]"
 set policy new_policy [mapping][schema][file][extension] = "mp4"
 set policy new_policy [mapping][schema][file][hash] = "md5"
 set policy new_policy [mapping][schema][file][type] = "varchar"
-set policy new_policy [mapping][schema][file][apply] = "opencv"
+set policy new_policy [mapping][schema][file][apply] = "base64decoding"
+
 
 :test-policy:
 test_policy = json !new_policy test
