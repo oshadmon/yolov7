@@ -49,17 +49,20 @@ set policy new_policy [mapping][schema][end_time][bring] = "[end_time]"
 
 set policy new_policy [mapping][schema][duration] = {}
 set policy new_policy [mapping][schema][duration][type] = "float"
+set policy new_policy [mapping][schema][duration][default] = 0.0
 set policy new_policy [mapping][schema][duration][bring] = "[start_time]"
 
 # -- video insight --
 set policy new_policy [mapping][schema][frame_count] = {}
 set policy new_policy [mapping][schema][frame_count][type] = "int"
 set policy new_policy [mapping][schema][frame_count][bring] = "[frame_count]"
+set policy new_policy [mapping][schema][frame_count][default] = 0
 set policy new_policy [mapping][schema][frame_count][root] = true.bool
 
 set policy new_policy [mapping][schema][fps] = {}
 set policy new_policy [mapping][schema][fps][type] = "float"
 set policy new_policy [mapping][schema][fps][bring] = "[fps]"
+set policy new_policy [mapping][schema][fps][default] = 0.0
 set policy new_policy [mapping][schema][fps][root] = true.bool
 
 set policy new_policy [mapping][schema][file] = {}
@@ -70,6 +73,8 @@ set policy new_policy [mapping][schema][file][hash] = "md5"
 set policy new_policy [mapping][schema][file][type] = "varchar"
 set policy new_policy [mapping][schema][file][apply] = "base64decoding"
 set policy new_policy [mapping][schema][file][root] = true.bool
+set policy new_policy [mapping][schema][file][default] = ""
+
 
 
 :test-policy:
