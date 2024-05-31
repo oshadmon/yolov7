@@ -69,6 +69,7 @@ set policy new_policy [mapping][schema][file][extension] = "mp4"
 set policy new_policy [mapping][schema][file][hash] = "md5"
 set policy new_policy [mapping][schema][file][type] = "varchar"
 set policy new_policy [mapping][schema][file][apply] = "base64decoding"
+set policy new_policy [mapping][schema][file][root] = true.bool
 
 
 :test-policy:
