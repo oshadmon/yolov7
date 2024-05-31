@@ -34,6 +34,9 @@ def write_metadata(blobs_dir=BLOBS_DIR, metadata={}):
     if not os.path.isfile(metadata_file):
         open(metadata_file, 'w').close()
 
+    frames_to_video(frames=metadata['frames'], output_file=os.path.join(blobs_dir, metadata['file_name']),
+                    fps=metadata['fps'])
+    del metadata['frames']
     try:
         with open(metadata_file, 'a') as f:
             f.write(f"{json.dumps(metadata)}\n")
@@ -124,9 +127,10 @@ class VideoRecorder:
                         "duration": round(current_time - self.start_time, 2)
                     },
                     "frame_count": len(frames),
-                    "fps": self.cap.get(cv2.CAP_PROP_FPS)
+                    "fps": self.cap.get(cv2.CAP_PROP_FPS),
+                    "frames": frames
                 }
-                frames_to_video(frames, os.path.join(self.blobs_dir, metadata['file_name']), metadata['fps'])
+
                 if self.table_name is None:
                     metadata['table'] = os.path.basename(self.filename).split(".")[0]
                 if self.rest_conn:
