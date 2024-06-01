@@ -7,6 +7,8 @@ import os
 import requests
 import time
 import threading
+import multiprocessing as mp
+
 
 ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
@@ -65,6 +67,9 @@ def write_metadata(blobs_dir=BLOBS_DIR, metadata:dict={}):
     except Exception as error:
         print(f"Failed to write metadata into file {metadata_file} (Error: {error})")
 
+def __convert_to_list(frame):
+    return frame.tolist()
+
 
 def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
     """
@@ -90,10 +95,11 @@ def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
         'Content-Type': 'application/json'
     }
 
-    for i in range(len(metadata['frames'])):
-        metadata['frames'][i] = metadata['frames'][i].tolist()
+    with mp.Pool(mp.cpu_count()) as pool:
+        metadata['frames'] = pool.map(__convert_to_list, metadata['frames'])
+
     try:
-        response = requests.post(url=f"http://{conn}", headers=headers, json=metadata, auth=auth, timeout=30)
+        response = requests.post(url=f"http://{conn}", headers=headers, data=json.dumps(metadata), auth=auth, timeout=30)
         response.raise_for_status()
     except Exception as error:
         print(f"Failed to send metadata to {conn} (Error: {error})")
@@ -101,7 +107,7 @@ def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
 
 class VideoRecorder:
     def __init__(self, blobs_dir, db_name, table_name=None, rest_conn=None, rest_topic='livefeed',
-                 camera_id=0, width=640, height=480, wait_time=60):
+                 camera_id:int=0, width:float=640, height:float=480, wait_time=60):
         self.blobs_dir = blobs_dir
         self.db_name = db_name
         self.table_name = table_name
@@ -111,8 +117,11 @@ class VideoRecorder:
             self.camera_id = int(camera_id)
         except Exception as error:
             raise Exception(f"Invalid camera id type (Error: {error})")
-        self.width = width
-        self.height = height
+        try:
+            self.width = float(width)
+            self.height = float(height)
+        except Exception as error:
+            raise Exception(f"Invalid height or width size value (Error: {error})")
         self.wait_time = wait_time
         self.is_running = threading.Event()
         self.cap = self.__enable_video_capture()
@@ -201,22 +210,26 @@ class VideoRecorder:
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('db_name', type=str, default='new_company', help='database name')
+    parser.add_argument('--table-name', type=str, default=None, help='table to store live feed name - if no table then each file will be ')
     parser.add_argument('--camera-id', type=int, default=get_default_camera_id(), help='Camera ID')
     parser.add_argument('--width', type=float, default=640, help='Live feed screen ratio width')
     parser.add_argument('--height', type=float, default=480, help='Live feed screen ratio height')
     parser.add_argument('--cut-video', type=int, default=10, help='Video size (in seconds)')
     parser.add_argument('--blobs-dir', type=str, default=BLOBS_DIR, help='Directory to store videos cuts and insight')
+    parser.add_argument('--rest-conn', type=str, default=None, help='REST connection info')
+    parser.add_argument('--rest-topic', default='livefeed', help='Topic associated with REST command')
     args = parser.parse_args()
 
     args.blobs_dir = os.path.expanduser(os.path.expandvars(args.blobs_dir))
     os.makedirs(args.blobs_dir, exist_ok=True)
 
-    video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company',  table_name='livefeed',
-                                   camera_id=args.camera_id, width=args.width, height=args.height,
-                                   wait_time=args.cut_video)
-    # video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company', table_name='livefeed',
-    #                                rest_conn='198.74.50.131:32149', rest_topic='livefeed', camera_id=args.camera_id,
-    #                                width=args.width, height=args.height, wait_time=args.cut_video)
+    # video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company',  table_name='livefeed',
+    #                                camera_id=args.camera_id, width=args.width, height=args.height,
+    #                                wait_time=args.cut_video)
+    video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name=args.db_name, table_name=args.table_name,
+                                   rest_conn='198.74.50.131:32149', rest_topic=args.rest_topic, camera_id=args.camera_id,
+                                   width=args.width, height=args.height, wait_time=args.cut_video)
 
     video_recorder.start_recording()
 
