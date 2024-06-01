@@ -65,6 +65,12 @@ set policy new_policy [mapping][schema][fps][bring] = "[fps]"
 # set policy new_policy [mapping][schema][fps][default] = 0.0
 set policy new_policy [mapping][schema][fps][root] = true.bool
 
+set policy new_policy [mapping][schema][file_name] = {}
+set policy new_policy [mapping][schema][file_name][root] = true.bool
+set policy new_policy [mapping][schema][file_name][bring] = "[file_name]"
+set policy new_policy [mapping][schema][file_name][type] = "varchar"
+set policy new_policy [mapping][schema][file_name][default] = ""
+
 set policy new_policy [mapping][schema][file] = {}
 set policy new_policy [mapping][schema][file][blob] = true.bool
 set policy new_policy [mapping][schema][file][bring] = "[video_base64]"

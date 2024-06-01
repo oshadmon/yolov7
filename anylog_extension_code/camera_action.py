@@ -179,7 +179,7 @@ class VideoRecorder:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
     def __create_video_writer(self):
-        self.filename = os.path.join(self.blobs_dir, f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
+        self.filename = os.path.join(self.blobs_dir, f'{self.rest_topic}_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         return cv2.VideoWriter(self.filename, fourcc, 20.0, (int(self.width), int(self.height)))
 
