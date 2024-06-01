@@ -50,7 +50,7 @@ set policy new_policy [mapping][schema][end_time][bring] = "[end_time]"
 set policy new_policy [mapping][schema][duration] = {}
 set policy new_policy [mapping][schema][duration][type] = "float"
 # set policy new_policy [mapping][schema][duration][default] = 0.0
-set policy new_policy [mapping][schema][duration][bring] = "[start_time]"
+set policy new_policy [mapping][schema][duration][bring] = "[duration]"
 
 # -- video insight --
 set policy new_policy [mapping][schema][frame_count] = {}

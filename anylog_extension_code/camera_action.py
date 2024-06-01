@@ -91,8 +91,11 @@ def frames_to_video_base64(frames, fps):
     video_writer.release()
 
     # Read the video file into a buffer
-    with open('output.mp4', 'rb') as video_file:
-        video_buffer = video_file.read()
+    try:
+        with open('output.mp4', 'rb') as video_file:
+            video_buffer = video_file.read()
+    except Exception as error:
+        return None
 
     # Convert the buffer to base64
     base64_str = base64.b64encode(video_buffer).decode('utf-8')
