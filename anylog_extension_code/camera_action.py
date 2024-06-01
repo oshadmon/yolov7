@@ -1,4 +1,5 @@
 import argparse
+import base64
 import cv2
 import datetime
 import json
@@ -7,7 +8,6 @@ import os
 import requests
 import time
 import threading
-import multiprocessing as mp
 
 
 ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
@@ -67,8 +67,40 @@ def write_metadata(blobs_dir=BLOBS_DIR, metadata:dict={}):
     except Exception as error:
         print(f"Failed to write metadata into file {metadata_file} (Error: {error})")
 
-def __convert_to_list(frame):
-    return frame.tolist()
+
+def frames_to_video_base64(frames, fps):
+    """
+    Convert video frames into a base64 encoded string
+    :args:
+        frames:list - frames to write
+        fps:float - frame rates
+    :return:
+        base64_str:str - base64 encoded video string
+    """
+    frames = [np.array(frame, dtype=np.uint8) for frame in frames]
+    height, width, layers = frames[0].shape
+    size = (width, height)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+    # Create a VideoWriter object with an in-memory buffer
+    video_writer = cv2.VideoWriter('output.mp4', fourcc, fps, size)
+
+    for frame in frames:
+        video_writer.write(frame)
+
+    video_writer.release()
+
+    # Read the video file into a buffer
+    with open('output.mp4', 'rb') as video_file:
+        video_buffer = video_file.read()
+
+    # Convert the buffer to base64
+    base64_str = base64.b64encode(video_buffer).decode('utf-8')
+
+    # Clean up the temporary file
+    os.remove('output.mp4')
+
+    return base64_str
 
 
 def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
@@ -95,8 +127,7 @@ def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
         'Content-Type': 'application/json'
     }
 
-    with mp.Pool(mp.cpu_count()) as pool:
-        metadata['frames'] = pool.map(__convert_to_list, metadata['frames'])
+    metadata['frames'] = frames_to_video_base64(frames=metadata['frames'], fps=metadata['fps'])
 
     try:
         response = requests.post(url=f"http://{conn}", headers=headers, data=json.dumps(metadata), auth=auth, timeout=30)
