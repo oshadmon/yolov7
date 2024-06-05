@@ -217,7 +217,7 @@ class VideoRecorder:
 
                 if self.table_name is None:
                     metadata['table'] = os.path.basename(self.filename).split(".")[0]
-                if self.rest_conn:
+                if self.rest_conn is not None:
                     send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
                 else:
                     write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
@@ -258,11 +258,8 @@ def main():
     args.blobs_dir = os.path.expanduser(os.path.expandvars(args.blobs_dir))
     os.makedirs(args.blobs_dir, exist_ok=True)
 
-    # video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name='new_company',  table_name='livefeed',
-    #                                camera_id=args.camera_id, width=args.width, height=args.height,
-    #                                wait_time=args.cut_video)
     video_recorder = VideoRecorder(blobs_dir=args.blobs_dir, db_name=args.db_name, table_name=args.table_name,
-                                   rest_conn='198.74.50.131:32149', rest_topic=args.rest_topic, camera_id=args.camera_id,
+                                   rest_conn=args.rest_conn, rest_topic=args.rest_topic, camera_id=args.camera_id,
                                    width=args.width, height=args.height, wait_time=args.cut_video)
 
     video_recorder.start_recording()
