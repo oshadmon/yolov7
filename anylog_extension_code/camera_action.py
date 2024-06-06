@@ -140,8 +140,25 @@ def send_data(rest_conn:str, topic:str='livefeed', metadata={}):
 
 
 class VideoRecorder:
-    def __init__(self, blobs_dir, db_name, table_name=None, rest_conn=None, rest_topic='livefeed',
-                 camera_id:int=0, width:float=640, height:float=480, wait_time=60):
+    def __init__(self, blobs_dir:str, db_name:str, table_name:str=None, rest_conn:str=None, rest_topic:str='livefeed',
+                 camera_id:int=0, width:float=640, height:float=480, wait_time:float=60):
+        """
+        class to communicate with camera
+        :params:
+            self.blobs_dir - directory to store video
+            self.db_name:str - logical database name (used in POST + mp4 file name)
+            self.table_name:str - table name / if not set use mp4 file name (use is POST only)
+            self.rest_conn:str - REST connection information
+            self.rest_topic:str - REST topic header value
+            self.camera_id:id - camera ID
+            self.width:float / self.height:float - image size
+            self.wait:float - how often to "wait" until saving / starting a new image
+            self.is_running:bool - running status
+            self.start_time:datetime.datetime - start timestamp
+            self.cap
+            self.video_writer
+            self.start_time:daatetime.datetime - start timestamp
+        """
         self.blobs_dir = blobs_dir
         self.db_name = db_name
         self.table_name = table_name
@@ -157,6 +174,7 @@ class VideoRecorder:
         except Exception as error:
             raise Exception(f"Invalid height or width size value (Error: {error})")
         self.wait_time = wait_time
+
         self.is_running = threading.Event()
         self.cap = self.__enable_video_capture()
         self.video_writer = self.__create_video_writer()
@@ -165,12 +183,18 @@ class VideoRecorder:
             raise Exception(f"Error: Could not open video device for camera ID {camera_id}")
 
     def __enable_video_capture(self):
+        """
+        Enable video capture
+        """
         cap = cv2.VideoCapture(self.camera_id)
         if not cap.isOpened():
             raise Exception(f"Failed to start video capture with camera {self.camera_id}")
         return cap
 
     def __set_cap_size(self, height=None, width=None):
+        """
+        Set capture size
+        """
         if height is None:
             height = self.height
         if width is None:
@@ -179,11 +203,19 @@ class VideoRecorder:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
     def __create_video_writer(self):
-        self.filename = os.path.join(self.blobs_dir, f'{self.rest_topic}_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
+        """
+        write video to file
+        :params:
+            self.filename:str - file name -- [db_name].[topic_name]_[start_time]
+        """
+        self.filename = os.path.join(self.blobs_dir, f'{self.db_name}.{self.rest_topic}_{datetime.datetime.fromtimestamp(self.start_time).strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         return cv2.VideoWriter(self.filename, fourcc, 20.0, (int(self.width), int(self.height)))
 
     def start_recording(self):
+        """
+        Start recording video(s)
+        """
         self.__set_cap_size()
         self.is_running.set()
         threading.Thread(target=self.__record).start()
@@ -226,11 +258,17 @@ class VideoRecorder:
             self.video_writer.write(frame)
 
     def stop_recording(self):
+        """
+        Stop recording
+        """
         self.is_running.clear()
         self.cap.release()
         self.video_writer.release()
 
     def display_feed(self, height=None, width=None):
+        """
+        Open a window show camera image(s)
+        """
         self.__set_cap_size(height=height, width=width)
         while True:
             ret, frame = self.cap.read()
@@ -243,6 +281,25 @@ class VideoRecorder:
         cv2.destroyAllWindows()
 
 def main():
+    """
+    Generate live camera feeds (broken every N seconds) and either store them to file or publish them directly into
+    AnyLog / EdgeLake via REST
+    :positional arguments:
+        db_name               database name
+    :optional arguments:
+        -h, --help                      show this help message and exit
+        --table-name    TABLE_NAME      table to store live feed name - if no table then each file will be
+        --camera-id     CAMERA_ID       Camera ID
+        --width         WIDTH           Live feed screen ratio width
+        --height        HEIGHT          Live feed screen ratio height
+        --cut-video     CUT_VIDEO       Video size (in seconds)
+        --blobs-dir     BLOBS_DIR       Directory to store videos cuts and insight
+        --rest-conn     REST_CONN       REST connection info
+        --rest-topic    REST_TOPIC      Topic associated with REST command
+    :params:
+        video_recorder:VideoRecorder - process to record video(s)
+        command:str - user defined command to execute in parallel to live images
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('db_name', type=str, default='new_company', help='database name')
     parser.add_argument('--table-name', type=str, default=None, help='table to store live feed name - if no table then each file will be ')
@@ -267,13 +324,13 @@ def main():
     try:
         while True:
             command = input("Command (o to open feed, q to quit, h to update height, w to update width): ").strip()
-            if command == 'o':
+            if command.lower()[0] == 'o':
                 video_recorder.display_feed(height=args.height, width=args.width)
-            elif command == 'q':
+            elif command.lower()[0] == 'q':
                 break
-            elif command == 'h':
+            elif command.lower()[0] == 'h':
                 args.height = float(input("Updated height: "))
-            elif command == 'w':
+            elif command.lower()[0] == 'w':
                 args.width = float(input("Updated width: "))
             else:
                 print(f"Invalid option {command}")
