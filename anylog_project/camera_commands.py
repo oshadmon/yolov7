@@ -21,42 +21,32 @@ def get_default_camera_id():
             return i
     raise Exception("Error: Could not find an available camera.")
 
-def frames_to_video_base64(frames, fps, width, height, output_file):
-    """
-    Convert video frames into a base64 encoded string
-    :args:
-        frames:list - frames to write
-        fps:float - frame rates
-    :return:
-        base64_str:str - base64 encoded video string
-    """
-    frames = [np.array(frame, dtype=np.uint8) for frame in frames]
-    # height, width, = frames[0].shape
-    size = (width, height)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+def frames_to_video_base64(numpy_array, fps=30, codec='mp4v'):
+    # Define the codec and create VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*codec)
 
-    # Create a VideoWriter object with an in-memory buffer
-    video_writer = cv2.VideoWriter(output_file, fourcc, fps, size)
+    # Get dimensions from the first frame
+    height, width = numpy_array[0].shape
 
-    for frame in frames:
-        video_writer.write(frame)
+    # Create VideoWriter object
+    out = cv2.VideoWriter('temp.mp4', fourcc, fps, (width, height))
 
-    video_writer.release()
+    # Write each frame to video
+    for frame in numpy_array:
+        out.write(frame)
 
-    # # Read the video file into a buffer
-    # try:
-    #     with open('output.mp4', 'rb') as video_file:
-    #         video_buffer = video_file.read()
-    # except Exception as error:
-    #     return None
+    # Release the VideoWriter
+    out.release()
+
+    # # Read the created video file
+    # with open('temp.mp4', 'rb') as f:
+    #     video_data = f.read()
     #
-    # # Convert the buffer to base64
-    # base64_str = base64.b64encode(video_buffer).decode('utf-8')
+    # # Encode the video data into base64
+    # base64_video = base64.b64encode(video_data).decode('utf-8')
     #
-    # # Clean up the temporary file
-    # os.remove('output.mp4')
-    #
-    # return base64_str
+    # return base64_video
+
 
 def frames_to_video(frames, output_file, fps):
     """
