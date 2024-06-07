@@ -169,6 +169,7 @@ class VideoRecorder:
 
         self.is_running = threading.Event()
         self.cap = self.__enable_video_capture()
+        self.cap.setExceptionMode(enable=True) # enable exception messages for cap
         self.video_writer = self.__create_video_writer()
         if not self.cap.isOpened():
             raise Exception(f"Error: Could not open video device for camera ID {camera_id}")
@@ -213,12 +214,26 @@ class VideoRecorder:
     def __record(self):
         frames = []
         while self.is_running.is_set():
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Error: Could not read frame.")
+            try:
+                ret, frame = self.cap.read()
+            except Exception as error:
+                print(f"Failed to read video (Error: {error})")
                 self.is_running.clear()
                 self.stop_recording()
                 break
+
+            if not ret:
+                print(f"Record Error: Could not read frame.")
+                # Attempt to reinitialize the capture device
+                self.cap.release()
+                self.cap = self.__enable_video_capture()
+                if not self.cap.isOpened():
+                    print("Error: Could not reopen video capture device.")
+                    self.is_running.clear()
+                    self.stop_recording()
+                    break
+                continue  # Skip processing this frame and try reading the next one
+
             current_time = time.time()
             frames.append(frame)
             if current_time - self.start_time >= self.wait_time:
@@ -242,10 +257,9 @@ class VideoRecorder:
                     support.send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
                 else:
                     support.write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
-                frames_to_video_base64(frames, self.cap.get(cv2.CAP_PROP_FPS), self.filename)
+                frames_to_video(frames, self.filename, self.cap.get(cv2.CAP_PROP_FPS))  # Adjust codec
                 self.start_time = current_time
                 frames = []
-
 
     def stop_recording(self):
         """
@@ -263,7 +277,7 @@ class VideoRecorder:
         while True:
             ret, frame = self.cap.read()
             if not ret:
-                print("Error: Could not read frame.")
+                print("Display Feed Error: Could not read frame.")
                 self.stop_recording()
                 continue
             cv2.imshow('Video Feed', frame)

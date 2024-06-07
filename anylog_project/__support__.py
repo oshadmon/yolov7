@@ -2,7 +2,7 @@ import json
 import os
 import requests
 
-from camera_commands import frames_to_video
+from camera_commands import frames_to_video_base64
 
 ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
@@ -22,7 +22,7 @@ def write_metadata(blobs_dir=BLOBS_DIR, metadata:dict={}):
         open(metadata_file, 'w').close()
 
     # write frames to mp4 file
-    frames_to_video(frames=metadata['frames'], output_file=os.path.join(blobs_dir, metadata['file_name']),
+    frames_to_video_base64(frames=metadata['frames'], output_file=os.path.join(blobs_dir, metadata['file_name']),
                     fps=metadata['fps'])
     del metadata['frames']
 
