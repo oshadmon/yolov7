@@ -21,7 +21,7 @@ def get_default_camera_id():
             return i
     raise Exception("Error: Could not find an available camera.")
 
-def frames_to_video_base64(frames, fps, output_file):
+def frames_to_video_base64(frames, fps, width, height, output_file):
     """
     Convert video frames into a base64 encoded string
     :args:
@@ -31,7 +31,7 @@ def frames_to_video_base64(frames, fps, output_file):
         base64_str:str - base64 encoded video string
     """
     frames = [np.array(frame, dtype=np.uint8) for frame in frames]
-    height, width, layers = frames[0].shape
+    # height, width, = frames[0].shape
     size = (width, height)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
@@ -249,6 +249,8 @@ class VideoRecorder:
                     "frame_count": len(frames),
                     'frames': frame,
                     "fps": self.cap.get(cv2.CAP_PROP_FPS),
+                    "width": self.width,
+                    "height": self.height
                 }
 
                 if self.table_name is None:
