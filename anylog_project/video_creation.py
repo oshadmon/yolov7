@@ -10,6 +10,19 @@ BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
 def main():
     """
     Live video feed & store to file or AnyLog/EdgeLake
+    :optional arguments:
+        -h, --help              show this help message and exit
+        --camera-id     CAMERA_ID   Camera ID
+        --blobs-dir     BLOBS_DIR   directory to store videos in
+        --db-name       DB_NAME     logical database name to store data in
+        --table-name    TABLE_NAME  table name / if not set use mp4 file name (used in POST only)
+        --rest-conn     REST_CONN   REST connection information
+        --rest-topic    REST_TOPIC  REST topic header value
+        --video-size    VIDEO_SIZE  how often to "wait" until saving / starting a new image
+        --width         WIDTH       image size
+        --height        HEIGHT      image size
+    :params:
+        command:str - User defined command
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--camera-id',  type=int,   default=camera_commands.get_default_camera_id(), help='Camera ID')

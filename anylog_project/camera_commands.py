@@ -60,20 +60,28 @@ def frames_to_video_base64(frames, fps, output_file):
 
 def frames_to_video(frames, output_file, fps):
     """
-    Write video frames into mp4 file
+    Write video frames into mp4 file using H.264 codec
     :args:
         frames:list - frames to write
         output_file:str - file to store frames into
         fps:float - frame rates
     """
     frames = [np.array(frame, dtype=np.uint8) for frame in frames]
-    height, width, layers = frames[0].shape
+
+    # Check if the first frame is grayscale
+    if len(frames[0].shape) == 2:
+        height, width = frames[0].shape
+        layers = 1  # Grayscale image has only one layer
+    else:
+        height, width, layers = frames[0].shape
+
     size = (width, height)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # Use H.264 codec
     out = cv2.VideoWriter(output_file, fourcc, fps, size)
     for frame in frames:
         out.write(frame)
     out.release()
+
 
 
 def video_to_frames(video_file):
@@ -209,6 +217,7 @@ class VideoRecorder:
             if not ret:
                 print("Error: Could not read frame.")
                 self.is_running.clear()
+                self.stop_recording()
                 break
             current_time = time.time()
             frames.append(frame)
@@ -223,7 +232,7 @@ class VideoRecorder:
                         "duration": round(current_time - self.start_time, 2)
                     },
                     "frame_count": len(frames),
-                    'frames': frame
+                    'frames': frame,
                     "fps": self.cap.get(cv2.CAP_PROP_FPS),
                 }
 
@@ -255,6 +264,7 @@ class VideoRecorder:
             ret, frame = self.cap.read()
             if not ret:
                 print("Error: Could not read frame.")
+                self.stop_recording()
                 continue
             cv2.imshow('Video Feed', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
