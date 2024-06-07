@@ -22,7 +22,9 @@ def write_metadata(blobs_dir=BLOBS_DIR, metadata:dict={}):
         open(metadata_file, 'w').close()
 
     # write frames to mp4 file
-    frames_to_video_base64(numpy_array=metadata['frames'], fps=metadata['fps'])
+    frames_to_video_base64(numpy_array=metadata['frames'], output_file=os.path.join(blobs_dir, metadata['file_name']),
+                           codec='mp4v', fps=metadata['fps'])
+
     # frames_to_video_base64(frames=metadata['frames'], fps=metadata['fps'], width=metadata['width'],
     #                        height=metadata['height'], output_file=os.path.join(blobs_dir, metadata['file_name']))
     del metadata['frames']

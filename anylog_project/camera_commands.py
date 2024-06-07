@@ -1,3 +1,4 @@
+import base64
 import cv2
 import datetime
 import os
@@ -21,15 +22,15 @@ def get_default_camera_id():
             return i
     raise Exception("Error: Could not find an available camera.")
 
-def frames_to_video_base64(numpy_array, fps=30, codec='mp4v'):
+def frames_to_video_base64(numpy_array, output_file, fps=30, codec='mp4v'):
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*codec)
 
     # Get dimensions from the first frame
-    height, width = numpy_array[0].shape
+    height, width = numpy_array[0].shape[0:2]
 
     # Create VideoWriter object
-    out = cv2.VideoWriter('temp.mp4', fourcc, fps, (width, height))
+    out = cv2.VideoWriter(cv2.CAP_ANY, fourcc, fps, (width, height))
 
     # Write each frame to video
     for frame in numpy_array:
@@ -38,15 +39,15 @@ def frames_to_video_base64(numpy_array, fps=30, codec='mp4v'):
     # Release the VideoWriter
     out.release()
 
-    # # Read the created video file
-    # with open('temp.mp4', 'rb') as f:
-    #     video_data = f.read()
-    #
-    # # Encode the video data into base64
-    # base64_video = base64.b64encode(video_data).decode('utf-8')
-    #
-    # return base64_video
+    # Read the created video file
+    with open(output_file, 'rb') as f:
+        video_data = f.read()
 
+    # Encode the video data into base64
+    base64_video = base64.b64encode(video_data).decode('utf-8')
+
+    with open(output_file, 'wb') as f:
+        f.write(base64_video)
 
 def frames_to_video(frames, output_file, fps):
     """
@@ -71,8 +72,6 @@ def frames_to_video(frames, output_file, fps):
     for frame in frames:
         out.write(frame)
     out.release()
-
-
 
 def video_to_frames(video_file):
     """
