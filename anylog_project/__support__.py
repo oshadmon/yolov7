@@ -2,7 +2,7 @@ import json
 import os
 import requests
 
-from camera_commands import frames_to_video_base64
+from camera_commands import frames_to_video
 
 ROOT_PATH = os.path.dirname(__file__).split("anylog_extension_code")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
@@ -60,7 +60,7 @@ def publish_data(rest_conn:str, topic:str='livefeed', metadata={}):
         'Content-Type': 'application/json'
     }
 
-    metadata['frames'] = frames_to_video_base64(frames=metadata['frames'], fps=metadata['fps'])
+    metadata['frames'] = frames_to_video(frames=metadata['frames'], fps=metadata['fps'])
 
     try:
         response = requests.post(url=f"http://{conn}", headers=headers, data=json.dumps(metadata),

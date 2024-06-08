@@ -23,9 +23,10 @@ def main():
         exit(1)
     for fname in os.listdir(full_path):
         if not fname.endswith('mp4'):
-            break
-        file_path = os.path.join(full_path, fname)
-        show_video(file_path)
+            continue
+        else:
+            file_path = os.path.join(full_path, fname)
+            show_video(file_path)
 
 if __name__ == '__main__':
     main()

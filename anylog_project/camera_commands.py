@@ -22,80 +22,89 @@ def get_default_camera_id():
             return i
     raise Exception("Error: Could not find an available camera.")
 
-def frames_to_video_base64(numpy_array, output_file, fps=30, codec='mp4v'):
+def frames_to_video(numpy_array, output_file, fps=30, codec='mp4v'):
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*codec)
 
     # Get dimensions from the first frame
-    height, width = numpy_array[0].shape[0:2]
+    height, width = numpy_array[0].shape[:2]
 
     # Create VideoWriter object
-    out = cv2.VideoWriter(cv2.CAP_ANY, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(output_file, fourcc, fps, (width, height), isColor=True)
 
-    # Write each frame to video
     for frame in numpy_array:
+        # Ensure the frame is in the right format (convert if needed)
+        if frame.shape[:2] != (height, width):
+            frame = cv2.resize(frame, (width, height))
         out.write(frame)
 
-    # Release the VideoWriter
+    # Release the VideoWriter object
     out.release()
 
-    # Read the created video file
-    with open(output_file, 'rb') as f:
-        video_data = f.read()
 
-    # Encode the video data into base64
-    base64_video = base64.b64encode(video_data).decode('utf-8')
+# def read_video_to_frames(input_file):
+#     # Open the video file
+#     cap = cv2.VideoCapture(input_file)
+#
+#     # Check if video opened successfully
+#     if not cap.isOpened():
+#         raise IOError("Error opening video file")
+#
+#     # Read frames from the video file
+#     frames = []
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             break
+#         frames.append(frame)
+#
+#     # Release the video capture object
+#     cap.release()
+#
+#     return np.array(frames)
 
-    with open(output_file, 'wb') as f:
-        f.write(base64_video)
 
-def frames_to_video(frames, output_file, fps):
-    """
-    Write video frames into mp4 file using H.264 codec
-    :args:
-        frames:list - frames to write
-        output_file:str - file to store frames into
-        fps:float - frame rates
-    """
-    frames = [np.array(frame, dtype=np.uint8) for frame in frames]
 
-    # Check if the first frame is grayscale
-    if len(frames[0].shape) == 2:
-        height, width = frames[0].shape
-        layers = 1  # Grayscale image has only one layer
-    else:
-        height, width, layers = frames[0].shape
+# def video_to_frames(video_file):
+#     """
+#     Read video file and extract frames.
+#     :args:
+#         video_file:str - path to the video file
+#     :return:
+#         frames:list - list of frames extracted from the video
+#         fps:float - frames per second of the video
+#     """
+#     # Check if the file exists
+#     if not os.path.exists(video_file):
+#         raise Exception(f"Error: Video file {video_file} does not exist")
+#
+#     # Print the file path for debugging
+#     print(f"Trying to open video file: {video_file}")
+#
+#     cap = cv2.VideoCapture(video_file)
+#     cv2.VideoCapture.set(cv2.CAP_PROP_VERBOSE, 1)
+#     if not cap.isOpened():
+#         raise Exception(f"Error: Could not open video file {video_file}")
+#
+#     frames = []
+#     fps = cap.get(cv2.CAP_PROP_FPS)
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             break
+#         frames.append(frame)
+#
+#     cap.release()
+#     return frames, fps
 
-    size = (width, height)
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # Use H.264 codec
-    out = cv2.VideoWriter(output_file, fourcc, fps, size)
-    for frame in frames:
-        out.write(frame)
-    out.release()
-
-def video_to_frames(video_file):
-    """
-    Read video file and extract frames.
-    :args:
-        video_file:str - path to the video file
-    :return:
-        frames:list - list of frames extracted from the video
-        fps:float - frames per second of the video
-    """
-    # Check if the file exists
-    if not os.path.exists(video_file):
-        raise Exception(f"Error: Video file {video_file} does not exist")
-
-    # Print the file path for debugging
-    print(f"Trying to open video file: {video_file}")
-
-    cap = cv2.VideoCapture(video_file)
-    cv2.VideoCapture.set(cv2.CAP_PROP_VERBOSE, 1)
+def read_video_to_frames(input_file):
+    cap = cv2.VideoCapture(input_file)
     if not cap.isOpened():
-        raise Exception(f"Error: Could not open video file {video_file}")
+        raise IOError("Error opening video file")
 
     frames = []
     fps = cap.get(cv2.CAP_PROP_FPS)
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -103,7 +112,8 @@ def video_to_frames(video_file):
         frames.append(frame)
 
     cap.release()
-    return frames, fps
+    return np.array(frames), fps
+
 
 def show_video(video_file):
     """
@@ -119,12 +129,17 @@ def show_video(video_file):
         print(f"Failed to locate file {video_file}")
         return
 
-    frames, fps = video_to_frames(full_path)
+    frames, fps = read_video_to_frames(input_file=full_path)
 
-    # Display the first frame
-    if frames:
-        cv2.imshow('First Frame', frames[0])
-        cv2.waitKey(0)
+    # Check if frames are extracted
+    if frames.size > 0:
+        # Calculate the delay between frames in milliseconds
+        delay = int(1000 / fps)
+
+        for frame in frames:
+            cv2.imshow('Video', frame)
+            if cv2.waitKey(delay) & 0xFF == ord('q'):
+                break
         cv2.destroyAllWindows()
     else:
         print("No frames extracted from the video.")
@@ -154,12 +169,11 @@ class VideoRecorder:
         self.width = float(width)
         self.height = float(height)
         self.wait_time = wait_time
-        self.start_time = time.time()
 
         self.is_running = threading.Event()
         self.cap = self.__enable_video_capture()
-        self.cap.setExceptionMode(enable=True) # enable exception messages for cap
-        self.video_writer = self.__create_video_writer()
+        # self.cap.setExceptionMode(enable=True) # enable exception messages for cap
+        self.video_writer = None
         if not self.cap.isOpened():
             raise Exception(f"Error: Could not open video device for camera ID {camera_id}")
 
@@ -183,15 +197,6 @@ class VideoRecorder:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
-    def __create_video_writer(self):
-        """
-        Create video writer
-        :return: VideoWriter object
-        """
-        self.filename = os.path.join(self.blobs_dir, f'{self.db_name}.{self.rest_topic}_{datetime.datetime.fromtimestamp(self.start_time).strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        return cv2.VideoWriter(self.filename, fourcc, 20.0, (int(self.width), int(self.height)))
-
     def start_recording(self):
         """
         Start recording video
@@ -201,7 +206,9 @@ class VideoRecorder:
         threading.Thread(target=self.__record).start()
 
     def __record(self):
+        self.video_writer = None
         frames = []
+        start_time = time.time()
         while self.is_running.is_set():
             try:
                 ret, frame = self.cap.read()
@@ -225,53 +232,57 @@ class VideoRecorder:
 
             current_time = time.time()
             frames.append(frame)
-            if current_time - self.start_time >= self.wait_time:
-                metadata = {
-                    "dbms": self.db_name,
-                    "table": self.table_name,
-                    "file_name": os.path.basename(self.filename),
-                    "readings": {
-                        "start_time": datetime.datetime.fromtimestamp(self.start_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
-                        "end_time": datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
-                        "duration": round(current_time - self.start_time, 2)
-                    },
-                    "frame_count": len(frames),
-                    'frames': frame,
-                    "fps": self.cap.get(cv2.CAP_PROP_FPS),
-                    "width": self.width,
-                    "height": self.height
-                }
-
-                if self.table_name is None:
-                    metadata['table'] = os.path.basename(self.filename).split(".")[0]
-                if self.rest_conn is not None:
-                    support.send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
-                else:
-                    support.write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
-                frames_to_video(frames, self.filename, self.cap.get(cv2.CAP_PROP_FPS))  # Adjust codec
-                self.start_time = current_time
+            if current_time - start_time >= self.wait_time:
+                self.__save_video(frames)
+                self.__send_metadata(frames, start_time, current_time)
                 frames = []
+                start_time = current_time
+
+    def __save_video(self, frames):
+        """
+        Save frames to video file
+        """
+        if not frames:
+            return
+        if self.video_writer is None:
+            filename = os.path.join(self.blobs_dir, f'{self.db_name}.{self.rest_topic}_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")}.mp4')
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.video_writer = cv2.VideoWriter(filename, fourcc, 20.0, (int(self.width), int(self.height)))
+        for frame in frames:
+            self.video_writer.write(frame)
+
+    def __send_metadata(self, frames, start_time, end_time):
+        """
+        Send metadata to service
+        """
+        if not frames:
+            return
+        metadata = {
+            "dbms": self.db_name,
+            "table": self.table_name if self.table_name is not None else os.path.basename(self.video_writer.getBackendName()).split(".")[0],
+            "file_name": os.path.basename(self.video_writer.getBackendName()),
+            "readings": {
+                "start_time": datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                "end_time": datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                "duration": round(end_time - start_time, 2)
+            },
+            "frame_count": len(frames),
+            'frames': frames,
+            "fps": self.cap.get(cv2.CAP_PROP_FPS),
+            "width": self.width,
+            "height": self.height
+        }
+        if self.rest_conn is not None:
+            support.send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
+        else:
+            support.write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
 
     def stop_recording(self):
         """
         Stop recording
         """
         self.is_running.clear()
+        if self.video_writer is not None:
+            self.video_writer.release()
         self.cap.release()
-        self.video_writer.release()
 
-    def display_feed(self, height=None, width=None):
-        """
-        Open a window to show camera feed
-        """
-        self.__set_cap_size(height=height, width=width)
-        while True:
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Display Feed Error: Could not read frame.")
-                self.stop_recording()
-                continue
-            cv2.imshow('Video Feed', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        cv2.destroyAllWindows()
