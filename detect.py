@@ -2,7 +2,7 @@ import argparse
 import os
 from pathlib import Path
 import time
-
+import json
 
 import cv2
 import torch
@@ -127,10 +127,7 @@ def detect(save_img=False):
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-                tmp = {
-                    'dbms': None,
-                    'table': None
-                }
+                tmp = {}
                 if s != '':
                     for i in s.strip().split(","):
                         if i.strip() != '':
@@ -142,15 +139,18 @@ def detect(save_img=False):
                             except:
                                 tmp[key] = value
 
-                s = {}
+                s = {
+                    'dbms': opt.db_name,
+                    'table': opt.table_name
+                }
                 for key in tmp:
                     if key in SUB_NAMES:
                         if 'vehicle' not in s: # merge vehicles
                             s['vehicle'] = 0
                         s['vehicle'] += tmp[key]
-                    elif key in ['person', 'dbms', 'table']: # only people and database information
+                    elif key == 'person': # person(s)
                         s[key] = tmp[key]
-                    # else:
+                    # else: # everything
                     #     s[key] = tmp[key]
 
                 # Write results
@@ -165,8 +165,17 @@ def detect(save_img=False):
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
+            if not opt.table_name:
+                opt.table_name = os.path.basename(str(p).split(".mp4")[0])
+                s['table'] = opt.table_name
+            file_path = os.path.join(os.path.dirname(str(p)), f'{opt.db_name}.{opt.table_name}.0.json')
+            if not os.path.isfile(file_path):
+                open(file_path, 'w').close()
+            with open(file_path, 'a') as f:
+                f.write(json.dumps(s) + "\n")
+
             # Print time (inference + NMS)
-            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
             # Stream results
             if view_img:
@@ -174,28 +183,28 @@ def detect(save_img=False):
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
-            if save_img:
-                if dataset.mode == 'image':
-                    cv2.imwrite(save_path, im0)
-                    print(f" The image with the result is saved in: {save_path}")
-                else:  # 'video' or 'stream'
-                    if vid_path != save_path:  # new video
-                        vid_path = save_path
-                        if isinstance(vid_writer, cv2.VideoWriter):
-                            vid_writer.release()  # release previous video writer
-                        if vid_cap:  # video
-                            fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        else:  # stream
-                            fps, w, h = 30, im0.shape[1], im0.shape[0]
-                            save_path += '.mp4'
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer.write(im0)
+            # if save_img:
+            if dataset.mode == 'image':
+                cv2.imwrite(save_path, im0)
+                print(f" The image with the result is saved in: {save_path}")
+            else:  # 'video' or 'stream'
+                if vid_path != save_path:  # new video
+                    vid_path = save_path
+                    if isinstance(vid_writer, cv2.VideoWriter):
+                        vid_writer.release()  # release previous video writer
+                    if vid_cap:  # video
+                        fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                        w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    else:  # stream
+                        fps, w, h = 30, im0.shape[1], im0.shape[0]
+                        save_path += '.mp4'
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                vid_writer.write(im0)
 
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        #print(f"Results saved to {save_dir}{s}")
+    # if save_txt or save_img:
+    #     s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+    #     #print(f"Results saved to {save_dir}{s}")
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
@@ -220,6 +229,8 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
+    parser.add_argument('--db-name', type=str, default="demo_blobs", help='Database name')
+    parser.add_argument('--table-name', type=str, default=None, help='logical table name')
     opt = parser.parse_args()
 
     opt.source  = os.path.expanduser(os.path.expandvars(opt.source))
