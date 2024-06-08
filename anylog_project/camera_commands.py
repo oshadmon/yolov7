@@ -272,10 +272,10 @@ class VideoRecorder:
             "width": self.width,
             "height": self.height
         }
-        if self.rest_conn is not None:
-            support.send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
-        else:
-            support.write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
+        # if self.rest_conn is not None:
+        #     support.send_data(rest_conn=self.rest_conn, topic=self.rest_topic, metadata=metadata)
+        # else:
+        support.write_metadata(blobs_dir=self.blobs_dir, metadata=metadata)
 
     def stop_recording(self):
         """

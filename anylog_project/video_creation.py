@@ -29,8 +29,8 @@ def main():
     parser.add_argument('--blobs-dir',  type=str,   default=BLOBS_DIR, help='directory to store videos in')
     parser.add_argument('--db-name',    type=str,   default='demo_blobs', help='logical database name to store data in')
     parser.add_argument('--table-name', type=str,   default=None, help='table name / if not set use mp4 file name (used in POST only)')
-    parser.add_argument('--rest-conn',  type=str,   default=None, help='REST connection information')
-    parser.add_argument('--rest-topic', type=str,   default='livefeed', help='REST topic header value')
+    # parser.add_argument('--rest-conn',  type=str,   default=None, help='REST connection information')
+    # parser.add_argument('--rest-topic', type=str,   default='livefeed', help='REST topic header value')
     parser.add_argument('--video-size', type=float, default=60, help='how often to "wait" until saving / starting a new image')
     parser.add_argument('--width',      type=float, default=640, help='image size')
     parser.add_argument('--height',     type=float, default=480, help='image size')
@@ -45,8 +45,7 @@ def main():
             exit(1)
 
     video_recorder = camera_commands.VideoRecorder(blobs_dir=args.blobs_dir, db_name=args.db_name,
-                                                   table_name=args.table_name, rest_conn=args.rest_conn,
-                                                   rest_topic=args.rest_topic, camera_id=args.camera_id,
+                                                   table_name=args.table_name, camera_id=args.camera_id,
                                                    width=args.width, height=args.height, wait_time=args.video_size)
 
     video_recorder.start_recording()
