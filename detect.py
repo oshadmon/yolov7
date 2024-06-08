@@ -1,7 +1,8 @@
+import argparse
 import os
-import sys
-import time
 from pathlib import Path
+import time
+
 
 import cv2
 import torch
@@ -15,73 +16,30 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
-ROOT_PATH = os.path.dirname(__file__)
-PROJECT_PATH = os.path.join(ROOT_PATH, 'runs', 'detect')
 
-def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference/images', imgsz=640, conf_thres=0.25,
-           iou_thres=0.45, device = '', view_img=False, get_bbox:bool=True, save_txt=False, save_conf=False, nosave=False,
-           classes=None, agnostic_nms=False, augment=False, project=PROJECT_PATH, name='exp', exist_ok=False, trace=False):
-    """
-    run YOLO-v7 object detection on a given source.
-    :args:
-        db_name:str - logical database name
-        table:str - table name -- if not set uses file name from source
-        weights:list - Paths to the weights file(s)
-        source:str - Source of the input data (image, video, or webcam)
-        imgsz:int - Image size for inference
-        conf_thres:float - Confidence threshold for detections
-        iou_thres:float - IoU threshold for Non-Maximum Suppression
-        device:str - Device to run inference on (e.g., 'cpu', 'cuda:0')
-        view_img:bool - Whether to display the output images
-        save_txt (bool) - Whether to save detection results in text files
-        save_conf:bool - Whether to save confidences in labels
-        nosave:bool - Whether to skip saving the inference images
-        classes:list - Filter by class (index of classes)
-        agnostic_nms:bol  - Whether to perform class-agnostic NMS
-        augment:bool - Augment images during inference
-        update:bool - Update all models (to fix SourceChangeWarning)
-        project:str - Save results to project/name
-        name:str - Save results to project/name
-        exist_ok:bool - Whether to increment the run if it exists
-        trace:bool - Whether to trace the model for faster inference
-    :params:
-        readings:list - list of JSON information for image
-    :return:
-        readings
-    :sample-reading:
-    {
-        'bbox': [
-            [0.91796875, 0.7489583492279053, 0.0390625, 0.08958332985639572],
-            [0.671875, 0.5604166388511658, 0.590624988079071, 0.8708333373069763]
-        ],
-        'chair': 1,
-        'person': 1
-    }
-    """
-    original_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
-    if not table:
-        table = os.path.basename(source).replace(".", "_")
+ROOT_PATH = os.path.dirname(__file__).split("anylog_project")[0]
+BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
 
-    readings = []
-    img_size = imgsz
-    # source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
-    save_img = not nosave and not source.endswith('.txt')  # save inference images
+
+SUB_NAMES = ['car', 'motorcycle', 'bus', 'truck']
+
+def detect(save_img=False):
+    source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
+    save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
 
     # Directories
-    save_dir_path = os.path.join(Path(project), name)
-    save_dir = Path(increment_path(save_dir_path, exist_ok=exist_ok))  # increment run
+    save_dir_path = os.path.join(Path(opt.project), opt.name)
+    save_dir = Path(increment_path(save_dir_path, exist_ok=opt.exist_ok))  # increment run
     os.makedirs(os.path.join(save_dir, 'labels'), exist_ok=True)
 
-    # Create frames directory if it doesn't exist
-    frames_dir = os.path.join(project, name, 'frames')
-    os.makedirs(frames_dir, exist_ok=True)
+    # save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
+    # (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Initialize
     set_logging()
-    device = select_device(device)
+    device = select_device(opt.device)
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
@@ -90,7 +48,7 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     if trace:
-        model = TracedModel(model, device, img_size)
+        model = TracedModel(model, device, opt.img_size)
 
     if half:
         model.half()  # to FP16
@@ -99,8 +57,7 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
     classify = False
     if classify:
         modelc = load_classifier(name='resnet101', n=2)  # initialize
-        torch_path = os.path.join('weights', 'resnet101.pt')
-        modelc.load_state_dict(torch.load(torch_path, map_location=device)['model']).to(device).eval()
+        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model']).to(device).eval()
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -135,16 +92,16 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
             old_img_h = img.shape[2]
             old_img_w = img.shape[3]
             for i in range(3):
-                model(img, augment=augment)[0]
+                model(img, augment=opt.augment)[0]
 
         # Inference
         t1 = time_synchronized()
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
-            pred = model(img, augment=augment)[0]
+            pred = model(img, augment=opt.augment)[0]
         t2 = time_synchronized()
 
         # Apply NMS
-        pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
+        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
 
         # Apply Classifier
@@ -159,7 +116,7 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
                 p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
-            save_path = os.path.join(save_dir, p.name) # img.jpg
+            save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
@@ -167,29 +124,49 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
-                reading = {"db": db_name, 'table': table}
-
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-                    reading[names[int(c)].strip().replace(" ", "_")] = n.numpy().tolist()
-                # Write results (bbox values)
-                if get_bbox is True:
-                    reading["bbox"] = []
-                    for *xyxy, conf, cls in reversed(det):
+                tmp = {
+                    'dbms': None,
+                    'table': None
+                }
+                if s != '':
+                    for i in s.strip().split(","):
+                        if i.strip() != '':
+                            value, key = i.strip().split(" ")
+                            if key.endswith('s'):
+                                key = key[:-1]
+                            try:
+                                tmp[key] = int(value)
+                            except:
+                                tmp[key] = value
+
+                s = {}
+                for key in tmp:
+                    if key in SUB_NAMES:
+                        if 'vehicle' not in s: # merge vehicles
+                            s['vehicle'] = 0
+                        s['vehicle'] += tmp[key]
+                    elif key in ['person', 'dbms', 'table']: # only people and database information
+                        s[key] = tmp[key]
+                    # else:
+                    #     s[key] = tmp[key]
+
+                # Write results
+                for *xyxy, conf, cls in reversed(det):
+                    if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                        reading['bbox'].append(list(line[1:]))
-                        if save_txt:  # Write to file
-                            with open(txt_path + '.txt', 'a') as f:
-                                f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                        line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
+                        with open(txt_path + '.txt', 'a') as f:
+                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
             # Print time (inference + NMS)
-            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
             # Stream results
             if view_img:
@@ -200,6 +177,7 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
             if save_img:
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
+                    print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
                     if vid_path != save_path:  # new video
                         vid_path = save_path
@@ -215,17 +193,42 @@ def detect(db_name:str, table:str=None, weights=['yolov7.pt'], source='inference
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
 
-                # Save individual frames without detections
-                img_path = os.path.join(project, name, 'frames', f"{p.stem}_{frame}.jpg")
-                reading["frame_path"] = img_path
-                cv2.imwrite(img_path, im0)
-            readings.append(reading)
-
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
-    # print(f'Done. ({time.time() - t0:.3f}s)')
-    sys.stdout = original_stdout
-    return readings
+    print(f'Done. ({time.time() - t0:.3f}s)')
 
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
+    parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
+    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--view-img', action='store_true', help='display results')
+    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
+    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
+    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
+    parser.add_argument('--augment', action='store_true', help='augmented inference')
+    parser.add_argument('--update', action='store_true', help='update all models')
+    parser.add_argument('--project', default=BLOBS_DIR, help='save results to project/name')
+    parser.add_argument('--name', default='exp', help='save results to project/name')
+    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
+    opt = parser.parse_args()
+
+    opt.source  = os.path.expanduser(os.path.expandvars(opt.source))
+    opt.project = os.path.expandvars(os.path.expanduser(opt.project))
+
+    with torch.no_grad():
+        if opt.update:  # update all models (to fix SourceChangeWarning)
+            for opt.weights in ['yolov7.pt']:
+                detect()
+                strip_optimizer(opt.weights)
+        else:
+            detect()
