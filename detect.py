@@ -16,10 +16,10 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
+import anylog_project.camera_commands as camera_commands
 
 ROOT_PATH = os.path.dirname(__file__).split("anylog_project")[0]
 BLOBS_DIR = os.path.join(ROOT_PATH, 'blobs')
-
 
 SUB_NAMES = ['car', 'motorcycle', 'bus', 'truck']
 
@@ -139,40 +139,66 @@ def detect(save_img=False):
                             except:
                                 tmp[key] = value
 
+                s_list = []
                 s = {
                     'dbms': opt.db_name,
-                    'table': opt.table_name
+                    'table': opt.table_name,
+                    'img_info': {},
+                    'readings': {}
                 }
+                if not opt.table_name:
+                    opt.table_name = os.path.basename(str(p).split(".mp4")[0])
+                    s['table'] = opt.table_name
+                file_path = os.path.join(os.path.dirname(str(p)), f'{opt.db_name}.{opt.table_name}.0.json')
+                if not os.path.isfile(file_path):
+                    open(file_path, 'w').close()
+
                 for key in tmp:
                     if key in SUB_NAMES:
-                        if 'vehicle' not in s: # merge vehicles
-                            s['vehicle'] = 0
-                        s['vehicle'] += tmp[key]
-                    elif key == 'person': # person(s)
-                        s[key] = tmp[key]
+                        if 'vehicle' not in s:  # merge vehicles
+                            s['readings']['vehicle'] = 0
+                        s['readings']['vehicle'] += tmp[key]
+                    elif key == 'person':  # person(s)
+                        s['readings'][key] = tmp[key]
                     # else: # everything
                     #     s[key] = tmp[key]
 
-                # Write results
+                frame_id = 1
                 for *xyxy, conf, cls in reversed(det):
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                    # Print bounding box coordinates
+                    s['img_info']['bbox'] = [int(coord.item()) for coord in xyxy]
+                    s['img_info']['img_size'] = im0.shape[:2] # (height, width)
 
-                    if save_img or view_img:  # Add bbox to image
-                        label = f'{names[int(cls)]} {conf:.2f}'
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                    # if save_img or view_img:  # Add bbox to image
+                    label = f'{names[int(cls)]} {conf:.2f}'
+                    plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
-            if not opt.table_name:
-                opt.table_name = os.path.basename(str(p).split(".mp4")[0])
-                s['table'] = opt.table_name
-            file_path = os.path.join(os.path.dirname(str(p)), f'{opt.db_name}.{opt.table_name}.0.json')
-            if not os.path.isfile(file_path):
-                open(file_path, 'w').close()
-            with open(file_path, 'a') as f:
-                f.write(json.dumps(s) + "\n")
+                    # Save individual detected objects as separate images
+                    xyxy = [int(coord) for coord in xyxy]
+                    cropped_img = im0[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]]
+                    cropped_img_name = f"{p.stem}_{names[int(cls)]}_{frame_id}.jpg"
+                    cropped_img_path = os.path.join(save_dir, 'cropped_images', cropped_img_name)
+                    camera_commands.write_image(image_path=cropped_img_path, img=cropped_img)
+                    # cv2.imwrite(cropped_img_path, cropped_img)
+                    # print(f"Cropped image saved: {cropped_img_path}")
+
+                    # Include the cropped image path in the dictionary
+                    s['cropped_img_path'] = cropped_img_path
+
+                    frame_id += 1
+
+                    # Append the dictionary to the list after each object is processed
+                    s_list.append(s.copy())
+
+                # Write results to the file
+                with open(file_path, 'a') as f:
+                    for s in s_list:
+                        f.write(json.dumps(s) + "\n")
 
             # Print time (inference + NMS)
             # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
