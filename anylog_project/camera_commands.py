@@ -100,6 +100,20 @@ def write_image(image_path:str, img:numpy.ndarray):
     except Exception as error:
         print(f"Failed to write image into {image_path} (Error: {error})")
 
+def display_image_with_bbox(image_path: str, bbox: list):
+    img = cv2.imread(image_path)
+    if img is not None:
+        # Draw the bounding box
+        x1, y1, x2, y2 = bbox
+        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green box with thickness 2
+
+        # Display the image
+        cv2.imshow('Image with BBox', img)
+        cv2.waitKey(0)  # Wait for a key press to close the image window
+        cv2.destroyAllWindows()
+    else:
+        print(f"Failed to load image from {image_path}")
+
 
 class VideoRecorder:
     def __init__(self, blobs_dir, db_name, table_name=None, rest_conn=None, rest_topic='livefeed',

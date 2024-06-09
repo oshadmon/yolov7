@@ -22,6 +22,7 @@ python3 yolov7/anylog_project/read_video.py
 
 * **Step 3**: Analyze video
   * **Code**: [detect.py](../detect.py)
+  * **Issue**: each analysis has its own image. want each image to have the full analysis 
 ```shell
 python3 yolov7/detect.py --weights yolov7.pt --conf 0.1 --img-size 640 --source ~/yolov7/blobs/video2B.mp4 
 ```

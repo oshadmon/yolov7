@@ -181,7 +181,7 @@ def detect(save_img=False):
                     # Save individual detected objects as separate images
                     xyxy = [int(coord) for coord in xyxy]
                     cropped_img = im0[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]]
-                    cropped_img_name = f"{p.stem}_{names[int(cls)]}_{frame_id}.jpg"
+                    cropped_img_name = f"{p.stem}_{frame_id}.jpg"
                     cropped_img_path = os.path.join(save_dir, 'cropped_images', cropped_img_name)
                     camera_commands.write_image(image_path=cropped_img_path, img=cropped_img)
                     # cv2.imwrite(cropped_img_path, cropped_img)
@@ -194,24 +194,6 @@ def detect(save_img=False):
 
                     # Append the dictionary to the list after each object is processed
                     s_list.append(s.copy())
-
-                complete_list = []
-                for s in s_list:
-                    # Extract image_id from cropped_img_path
-                    s_image_id = os.path.basename(s['cropped_img_path']).split('_', 2)[2].split(".")[0]
-
-                    # Check if complete_list is empty or s_image_id is not present in complete_list
-                    if not complete_list or all(
-                            os.path.basename(row['cropped_img_path']).split('_', 2)[2].split(".")[0] != s_image_id for
-                            row in complete_list):
-                        complete_list.append(s)
-                    else:
-                        for row in complete_list:
-                            row_image_id = os.path.basename(row['cropped_img_path']).split('_', 2)[2].split(".")[0]
-                            if row_image_id == s_image_id and row['cropped_img_path'] != s['cropped_img_path']:
-                                print(row)
-                                print(s)
-                                exit(1)
 
                 # Write results to the file
                 with open(file_path, 'a') as f:
