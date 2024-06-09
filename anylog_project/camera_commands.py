@@ -4,6 +4,8 @@ import datetime
 import os
 import time
 import threading
+
+import numpy
 import numpy as np
 import __support__ as support
 
@@ -40,62 +42,6 @@ def frames_to_video(numpy_array, output_file, fps=30, codec='mp4v'):
 
     # Release the VideoWriter object
     out.release()
-
-
-# def read_video_to_frames(input_file):
-#     # Open the video file
-#     cap = cv2.VideoCapture(input_file)
-#
-#     # Check if video opened successfully
-#     if not cap.isOpened():
-#         raise IOError("Error opening video file")
-#
-#     # Read frames from the video file
-#     frames = []
-#     while True:
-#         ret, frame = cap.read()
-#         if not ret:
-#             break
-#         frames.append(frame)
-#
-#     # Release the video capture object
-#     cap.release()
-#
-#     return np.array(frames)
-
-
-
-# def video_to_frames(video_file):
-#     """
-#     Read video file and extract frames.
-#     :args:
-#         video_file:str - path to the video file
-#     :return:
-#         frames:list - list of frames extracted from the video
-#         fps:float - frames per second of the video
-#     """
-#     # Check if the file exists
-#     if not os.path.exists(video_file):
-#         raise Exception(f"Error: Video file {video_file} does not exist")
-#
-#     # Print the file path for debugging
-#     print(f"Trying to open video file: {video_file}")
-#
-#     cap = cv2.VideoCapture(video_file)
-#     cv2.VideoCapture.set(cv2.CAP_PROP_VERBOSE, 1)
-#     if not cap.isOpened():
-#         raise Exception(f"Error: Could not open video file {video_file}")
-#
-#     frames = []
-#     fps = cap.get(cv2.CAP_PROP_FPS)
-#     while True:
-#         ret, frame = cap.read()
-#         if not ret:
-#             break
-#         frames.append(frame)
-#
-#     cap.release()
-#     return frames, fps
 
 def read_video_to_frames(input_file):
     cap = cv2.VideoCapture(input_file)
@@ -143,6 +89,16 @@ def show_video(video_file):
         cv2.destroyAllWindows()
     else:
         print("No frames extracted from the video.")
+
+def write_image(image_path:str, img:numpy.ndarray):
+    image_path = os.path.expanduser(os.path.expandvars(image_path))
+    dir_path = os.path.dirname(image_path)
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+    try:
+        cv2.imwrite(image_path, img)
+    except Exception as error:
+        print(f"Failed to write image into {image_path} (Error: {error})")
 
 
 class VideoRecorder:
