@@ -1,0 +1,1 @@
+{"dbms": "demo_blobs", "table": "FFMPEG", "file_name": "FFMPEG", "readings": {"start_time": "2024-06-07 17:22:17.271190", "end_time": "2024-06-07 17:22:27.273594", "duration": 10.0}, "frame_count": 301, "fps": 1.0, "width": 640.0, "height": 480.0}
